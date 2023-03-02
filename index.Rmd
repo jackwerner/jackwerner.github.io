@@ -21,6 +21,8 @@ Use the navigation bar above to explore any of my baseball analysis projects. If
 
 <a href="Home-Run-Classification.html"><i>Can We Predict Home Runs?</i></a> - using predictive modeling to understand nuts and bolts of a home run hit
 
+<a href="Tenth-Draft-Pick.html"><i>What is the Dollar Value of the Tenth Draft Pick?</i></a> - finding and comparing a player's total value
+
 </div>
 <div class="col-sm-6">
 

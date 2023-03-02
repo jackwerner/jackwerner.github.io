@@ -6,4 +6,6 @@ navbar:
       href: Release-Point-Tipping.html
     - text: "Can We Predict Home Runs?"
       href: Home-Run-Classification.html
+    - text: "What is the Dollar Value of the Tenth Draft Pick?"
+      href: Tenth-Draft-Pick.html
 output_dir: "."

@@ -1,0 +1,102 @@
+---
+title: "What is the Dollar Value of the Tenth Draft Pick?"
+author: "Jack Werner"
+date: "2/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(rvest)
+```
+
+## Background:
+
+The purpose of this document is to set a dollar value on the 10th overall pick in the MLB Amateur Draft. My approach to solve this problem is to collect historical player performance for players drafted around the 10th pick, analyze the value they have provided during their career, and convert this value into a fantasy auction-style dollar value. 
+
+## Collecting Data:
+This project required scraping and combining data from mulitple different sources. For historical MLB Draft data, I scraped html tables from Baseball-Reference.com using an R package called rvest. This data includes draft order, player names, and team names from every draft between 1990-2022 in order to get a sample size large enough to work with.
+
+Next, I downloaded career batting and pitching data from every player between 1990 and 2022 using the FanGraphs career batting and pitching leaderboards page. I imported these into R as .csv files.
+
+## Calculating Career Value:
+Because the tenth pick in the draft includes and batters and pitchers, it is important that we are measuring value-added in a way that can be compared across all positions. For this reason, I decided to use career WAR to measure the performance of each player. We also need to standardize each players WAR to control for different playing times (or retired vs still in the league). To do this, we will create a value called WAR per 162 G = (162*WAR) / G to emulate a 'per season average' WAR. The number of games we use does not affect the outcome, so long as it is the same across all players. <i>More on the decision to use WAR can be found in the Discussion section below.</i>
+
+Although the goal of this project is to assign a dollar value to the tenth pick of the draft, there is reason to believe that the players drafted slightly before or slightly after the tenth pick are not significaltly more or less talented than the players drafted tenth. In order to control for these draft inconsistencies, I decided to compute a weighted average WAR per 162 games for players drafted between 8th and 12th instead of simply averaging the WAR per 162 games for all players drafted tenth. 
+
+To do this, I used a neseted for loop to find the average WAR per 162 games for each pick across all 32 years, and then weighed them according to the tenth pick at 1/3 of the average, <u>+</u>1 pick at 2/9ths each, and <u>+</u>2 picks at 1/9th each. It should be noted that we are excluding any of these player's that have never played in the Major Leagues, because we don't have any MLB data for them!
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+wrcp = read.csv("/Users/jackwerner/Downloads/1990 - 2022 career wRC plus.csv")
+pitcher_war = read.csv("/Users/jackwerner/Downloads/1990 - 2022 career WAR pitcher.csv")
+wars_total = rbind(wrcp %>% select(Name, G, WAR),pitcher_war %>% select(Name, G, WAR))
+wars_total$war_per_162 = (162*wars_total$WAR) / wars_total$G
+
+```
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#picks 8 - 12 weighted
+values = c()
+for(j in 8:12){
+  players = c()
+  for (i in 1990:2022){
+    theurl <- paste0("https://www.baseball-reference.com/bullpen/",i,"_Amateur_Draft")
+    file<-read_html(theurl)
+    tables<-html_nodes(file, "table")
+    draft <- html_table(tables[1], fill = TRUE)[[1]]
+    players = c(players,draft[draft$Pick == j,]$Player)
+  }
+  wars = rbind(wrcp %>% filter(Name %in% players) %>% select(Name, G, WAR),pitcher_war %>% filter(Name %in% players) %>% select(Name, G, WAR))
+  wars$war_per_162 = (162*wars$WAR) / wars$G
+  print(paste0("pick ",j,": ",mean(wars$war_per_162)))
+  values = c(values, mean(wars$war_per_162))
+}
+
+weights = c(1/9,2/9,3/9,2/9,1/9) 
+weightedavgWAR = sum(weights*values)
+print(paste0("Weighted Average WAR for the 10th pick: ",weightedavgWAR))
+```
+
+This process provided a weighted average WAR per 162 games of 5.37, which is a better estimate than (and not far off from) the true average WAR per 162 games of the tenth pick at 5.35. 
+
+## Converting Perfomance into a Dollar Value:
+Now that we have a way to quantify the average perfomance of the tenth pick in the draft, we need to compare it to the population to understand their value.
+
+Next, I calculated a Z-score for the tenth pick using the average WAR per 162 we calculated above. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+z_p10 = (weightedavgWAR - mean(wars_total$war_per_162))/sd(wars_total$war_per_162)
+print(paste0("Z Score of the tenth pick: ",z_p10))
+```
+In order convert this Z-score into a dollar value, we need to find the worst player that would still be worth drafting, i.e. the player with an average WAR per 162 games <strong>closest to</strong> but <strong>greater than</strong> the mean. In otherwords, the player with the lowest WAR per 162 above average. After this value is identified, we must convert it into a Z-Score as well. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+mean_career_war = mean(wars_total$war_per_162)
+real_war_replacement = min(wars_total[wars_total$war_per_162>mean_career_war,]$war_per_162)
+#11.7 is the lowest a player has actually had a career war > replacement
+z_r = (real_war_replacement - mean(wars_total$war_per_162))/sd(wars_total$war_per_162)#.004542027
+print(paste0("Z-score for the worst player worth having: ",z_r)) 
+```
+Now that we have calculated a Z-score for the tenth pick and the worst player worth drafting, we will use the FanGraphs Auction Calculator method to assign a dollar value for each. 
+
+This method takes the worst player and cements his value at $1. To get there, we will subtract his own value from itself and then add $1. Then we need to make the same calculation to all players' values to adjust them equally. Thus, we have arrived at a dollar value for our tenth-picked player at $246.35. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+dollar_value_floor = 1000*(z_r - z_r) + 1
+dollar_value_tenth = 1000*(z_p10 - z_r) + 1
+dollar_value_ceiling =1000*((max(wars_total$war_per_162) - mean(wars_total$war_per_162)) / sd(wars_total$war_per_162))-z_r+1
+print(paste0("Worst player's dollar value: ",round(dollar_value_floor,2)))
+print(paste0("Tenth-pick dollar value: ",round(dollar_value_tenth,2)))
+print(paste0("Most valuable player's dollar value: ",round(dollar_value_ceiling,2)))
+```      
+
+## Discussion:
+While $246 pales in comparison to the maximum value of $5690 (Jacob deGrom, of course...), it still speaks fairly highly of the tenth pick. Actual players around this value include Mike Piazza, Corey Seager, Nolan Arenado, Josh Hader, and Matt Chapman. This is a group of players that any team should be happy to have on their roster. 
+
+Interestingly, of the 18 players drafted tenth that have reached the majors, only 5 returned a higher value than $246: Ben Sheets, Tim Lincecum, Madison Bumgarner, Jon Garland, and Jaret Wright. 
+
+A note on the decision to use WAR: WAR is an imperfect but useful statistic. This analysis uses FanGraph's WAR values. FanGraphs defines WAR as "an attempt by the sabermetric baseball community to summarize a player’s total contributions to their team in one statistic." Some of the benefits to using WAR is that it can capture offensive contributions, defensive contributions, and can compare between batters and pitchers. More benefits include the fact that it allows you to compare players from different ballparks, fielding positions, and eras of the game. One drawback is that WAR is not a precise measure, rather an estimate that helps us group players roughly into levels of skill.  However, WAR's precision ultimately doesn't hurt our analysis in a meaningful way. If this analysis were to be done with strictly batters or pitchers, one might opt to use wRC+ or FIP, respectively, and get a more accurate measure.
+
+Lastly, a keen eye may notice that the tenth player's dollar value is 246x greater than the worst player above replacement, while his z-score is 308x greater The difference comes from the fact that we reduced the worst player worth having to a value of essentially zero (plus $1 since he's is worth <i>something</i> to us). For dollar-value purposes, we are valuing his contributions as the bare minimum, and this impacts the relationship between player's values. One could develop an alternate method of assigning value that gives this player credit for his slim replacement value, but I (along with FanGraphs) chose not to. Another alternative method could be to set the total value of the leage at something like $100,000,000 and then use Z-scores to divide the league's value proportionally by value. 
+
+
+
+
