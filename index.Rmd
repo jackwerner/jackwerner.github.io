@@ -16,12 +16,20 @@ output: html_document
 
 Welcome to my Baseball Research Portfolio. Please use the navigation bar above to explore any of my baseball analysis projects. If you have any questions, please contact me at jack.richard.werner@gmail.com.
 
-### *Table of Contents* {style="padding-top: 0px;"}
+### Table of Contents {style="padding-top: 0px;"}
 <a href="Release-Point-Tipping.html"><i>Does Release Point Impact wOBA?</i></a> - using a t-test to identify the effect of arm-slot tipping
 
 <a href="Home-Run-Classification.html"><i>Can We Predict Home Runs?</i></a> - using predictive modeling to understand nuts and bolts of a home run hit
 
 <a href="Tenth-Draft-Pick.html"><i>What is the Dollar Value of the Tenth Draft Pick?</i></a> - finding and comparing a player's total value
+
+### Extras:
+<a href="https://jackrwerner.medium.com/jacob-degrom-sign-or-say-goodbye-5a94fda05623"><i>Jacob deGrom: Sign or Say Goodbye</i></a> - a cost-benefit analysis of a former Mets great (2022)
+
+<a href="https://jackrwerner.medium.com/predicting-mlb-strikeout-percentage-656fb5e090b5"><i>Predicting MLB Strikeout Percentage</i></a> - A simple application of Linear Modeling in R
+
+
+
 
 </div>
 <div class="col-sm-6">
